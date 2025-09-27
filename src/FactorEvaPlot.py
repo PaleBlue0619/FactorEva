@@ -184,13 +184,13 @@ class ReturnModel_Plot(SingleFactorBackTest):
         RankIR = Dict["RankIR"]
         with tabReg:
             st.subheader("Single Factor Return", divider=True)
-            st.line_chart(data=R, x="date", y=None)
+            st.line_chart(data=R, x="TradeTime", y=None)
             st.subheader("Single Factor Return(cumsum)", divider=True)
-            st.line_chart(data=R_cumsum, x="date", y=None)
+            st.line_chart(data=R_cumsum, x="TradeTime", y=None)
             st.subheader("Factor Tstat", divider=True)
-            st.bar_chart(data=t_stat, x="date", y=None, stack=False)
+            st.bar_chart(data=t_stat, x="TradeTime", y=None, stack=False)
             st.write("T值绝对值大于等于2的比例")
-            t_stat = t_stat.set_index("date")
+            t_stat = t_stat.set_index("TradeTime")
             t_stat = (t_stat.abs() >= 2).mean()  # .mean()计算|T|≥2的比例
             st.dataframe(data=t_stat)
         with tabIC:
