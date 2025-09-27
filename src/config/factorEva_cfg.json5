@@ -1,0 +1,63 @@
+{
+  // Basic Config
+  "start_date": "20200101",
+  "end_date": "20250430",
+  "dailyFreq": true,
+  "callBackPeriod": 1,
+  "returnIntervals":[1,5,10,20], // 未来K日区间收益率
+  "quantile": 10,
+  "dailyPnlLimit": 0.1, // 日涨跌停板(仅对dailyFreq=True时生效)
+  "useMinFreqPeriod": false,  // 是否将IC/回归法结果聚合至日频统计(仅对dailyFreq=False生效)
+
+  // COMBINE DATABASE
+  "label_database": "dfs://DayLabel",  // 标签数据库
+  "label_table": "pt",
+  "combine_database": "dfs://DayTemp", // 因子值+未来收益率Combine
+  "combine_table": "DayFreq500",
+  "idCol": "symbol",
+  "barReturnLabel": "dayBarReturn",  // LabelDB中的标签名[注:不能和下面的重名]
+  "futureReturnLabels": ["ret1D",
+                        "ret5D",
+                        "ret10D",
+                        "ret20D"], // LabelDB中的标签名
+  // RESULT DATABASE
+  "result_database": "dfs://DayFactorEva", // 结果数据库
+  "quantile_table": "quantile",  // 分层回测结果表
+  "summary_table": "summary", // ICIR & 回归法结果表
+
+  // FACTOR DATABASE
+  "factor_database": "dfs://Dayfactor",
+  "factor_table": "pt",
+  "factor_list": [
+    "shio",
+    "shio_avg20",
+    "shio_std20",
+    "shioStrong",
+    "shioStrong_avg20",
+    "shioStrong_std20",
+    "shioWeak",
+    "shioWeak_avg20",
+    "shioWeak_std20",
+    "interDayReturn",  // 隔夜收益率
+    "interDayReturn_avg20",
+    "interDayReturn_std20",
+//    "turnoverRateDiff", // 隔夜换手率差值
+//    "turnoverRateDiff_avg20",
+//    "turnoverRateDiff_std20",
+//    "intraDayReturn", // 日内收益率
+//    "intraDayReturn_avg20",
+//    "intraDayReturn_std20",
+//    "interDayVolatilityReverse", // 日间反转-波动翻转因子
+//    "interDayVolatilityReverse_avg20",
+//    "interDayVolatilityReverse_std20",
+//    "interDayTurnoverRateReverse", // 日间反转-换手翻转因子
+//    "interDayTurnoverRateReverse_avg20",
+//    "interDayTurnoverRateReverse_std20",
+//    "intraDayVolatilityReverse", // 日内反转-波动翻转因子
+//    "intraDayVolatilityReverse_avg20",
+//    "intraDayVolatilityReverse_std20",
+//    "intraDayTurnoverRateReverse", // 日内反转-换手翻转因子
+//    "intraDayTurnoverRateReverse_avg20",
+//    "intraDayTurnoverRateReverse_std20"
+  ]
+}　
