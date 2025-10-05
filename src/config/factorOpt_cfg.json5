@@ -1,0 +1,35 @@
+{
+  // Basic Config
+  "start_date": "20200101",
+  "end_date": "20250430",
+  "dailyFreq": true,
+  "callBackInterval": 30, // 每30个取一次
+  "callBackPeriod": 1, // 利用过去K期样本进行组合优化
+
+  // COMBINE DATABASE
+  "label_database": "dfs://DayLabel",
+  "label_table": "pt",
+  "weight_database": "dfs://DayFactorWgt", // 组合优化权重数据库
+  "weight_table": "pt",
+//  "result_database": "dfs://DayFactorEva",
+//  "optimize_table": "optimize",
+
+  // FACTOR DATABASE
+  "factor_database": "dfs://Dayfactor",
+  "factor_table": "pt",
+  "retFactor": "interDayReturn",
+  "factor_list": [
+    "shio",
+    "shio_avg20",
+    "shio_std20",
+    "shioStrong",
+    "shioStrong_avg20",
+    "shioStrong_std20",
+    "shioWeak",
+    "shioWeak_avg20",
+    "shioWeak_std20",
+    // "interDayReturn",  // 隔夜收益率
+    "interDayReturn_avg20",
+    "interDayReturn_std20"
+  ] // 因子池
+}

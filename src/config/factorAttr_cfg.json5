@@ -1,31 +1,22 @@
 {
   // Basic Config
-  "start_date": "20200101",
+  "start_date": "20210101",
   "end_date": "20250430",
-  "dailyFreq": true,
-  "callBackPeriod": 1,
-  "returnIntervals":[1,5,10,20], // 未来K日区间收益率
-  "quantile": 10,
-  "dailyPnlLimit": 0.1, // 日涨跌停板(仅对dailyFreq=True时生效)
-  "useMinFreqPeriod": false,  // 是否将IC/回归法结果聚合至日频统计(仅对dailyFreq=False生效)
+  "windowSize": 30,
 
-  // COMBINE DATABASE
-  "label_database": "dfs://DayLabel",  // 标签数据库
+   // COMBINE DATABASE
+  "label_database": "dfs://DayLabel",
   "label_table": "pt",
-  "combine_database": "dfs://DayTemp", // 因子值+未来收益率Combine
-  "combine_table": "DayFreq500",
-  "idCol": "symbol",
-  "barReturnLabel": "dayBarReturn",  // LabelDB中的标签名[注:不能和下面的重名]
-  "futureReturnLabels": ["ret1D",
-                        "ret5D",
-                        "ret10D",
-                        "ret20D"], // LabelDB中的标签名
-  // RESULT DATABASE
-  "result_database": "dfs://DayFactorEva", // 结果数据库
-  "quantile_table": "quantile",  // 分层回测结果表
-  "summary_table": "summary", // ICIR & 回归法结果表
+  "weight_database": "dfs://DayFactorWgt", // 组合优化权重数据库
+  "weight_table": "pt",
 
-  // FACTOR DATABASE
+  "result_database": "dfs://DayFactorAttr",
+  "pureFactorReturn_table": "pureFactorReturn",
+  "pureReturnAttr_table": "pureReturnAttr",
+  "pureRiskAttr_table": "pureRiskAttr",
+
+  "barReturnLabel": "dayBarReturn",  // LabelDB中的标签名
+ // FACTOR DATABASE
   "factor_database": "dfs://Dayfactor",
   "factor_table": "pt",
   "factor_list": [ // 因子池
@@ -60,4 +51,4 @@
 //    "intraDayTurnoverRateReverse_avg20",
 //    "intraDayTurnoverRateReverse_std20"
   ]
-}　
+}
