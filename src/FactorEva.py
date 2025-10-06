@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 import dolphindb as ddb
 import tqdm
-import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -134,7 +133,7 @@ class SingleFactorBackTest(FactorBackTest):
         if self.session.existsTable(dbUrl=self.combineDB,tableName=self.combineTB):
             self.session.dropTable(dbPath=self.combineDB,tableName=self.combineTB)
         columns_name=["symbol","TradeDate","TradeTime"]+[self.barReturnCol]+self.futureReturnCols+self.factor_list+["period"]
-        columns_type=["SYMBOL","DATE","TIME","DOUBLE"]+["DOUBLE"]*len(self.returnIntervals)+["DOUBLE"]*len(self.factor_list)+["INT"]
+        columns_type=["SYMBOL","DATE","TIME","DOUBLE"]+["DOUBLE"]*len(self.futureReturnCols)+["DOUBLE"]*len(self.factor_list)+["INT"]
         self.session.run(f"""
         db=database("{self.combineDB}",VALUE,2010.01M+(0..30)*12,engine="TSDB");
         schemaTb=table(1:0,{columns_name},{columns_type});
@@ -469,15 +468,16 @@ class SingleFactorBackTest(FactorBackTest):
 
 class OptimizeFactorBackTest(FactorBackTest):
     def __init__(self, session:ddb.session, pool:ddb.DBConnectionPool, config:Dict, Optimize_callBackFunc):
-        super(MultiFactorOptimize, self).__init__(session, pool, config)
+        super(OptimizeFactorBackTest, self).__init__(session, pool, config)
         self.strategy_name = "optimize_strategy"
         self.session = session
         self.pool = pool
+        self.optimize_table = config["optimize_table"]
 
         # 变量类
         self.callBackPeriod = int(config["callBackPeriod"]) # 回看长度
         self.callBackInterval = int(config["callBackInterval"]) # 回看频率
-        self.retFactor = "shio" # 预期收益率因子
+        self.retFactor = config["retFactor"] # 预期收益率因子
         self.periodDF = "optPeriodDF"
         self.freq = "d" if config["dailyFreq"] else "m"
         self.optData = pd.DataFrame()
@@ -491,6 +491,11 @@ class OptimizeFactorBackTest(FactorBackTest):
         self.Optimize_callBackFunc= Optimize_callBackFunc
 
     def init_resultDB(self, dropTB: bool = False):
+        # 单因子模型数据库
+        self.session.run(f"""
+            db=database("{self.resultDB}",VALUE,2020.01M..2030.01M,engine="OLAP");
+        """)
+
         if dropTB:
             if self.session.existsTable(dbUrl=self.resultDB, tableName=self.optimize_table):
                 self.session.dropTable(dbPath=self.resultDB, tableName=self.optimize_table)
@@ -628,6 +633,8 @@ class OptimizeFactorBackTest(FactorBackTest):
                                     endPeriod=self.currentPeriod,
                                     factorList=factorList)
                 weight = self.Optimize_callBackFunc(self)
+            weight["TradeDate"]=self.currentDate
+            weight["TradeTime"]=self.currentTime
             # 这里相当于每期都要append, 但是并不是每期都更新
             if not weight.empty:
                 weightAppender.append(weight)
@@ -644,9 +651,13 @@ class OptimizeFactorAttribute(FactorBackTest):
         self.returnObj = "OptAttrReturn"
         self.styleFactorObj = "OptAttrStyleFactor"
         self.industryFactorObj = "OptAttrIndustryFactor"
+        self.pureFactorRet_table = config["pureFactorRet_table"]
+        self.activeRetAttr_table = config["activeRetAttr_table"]
+        self.activeRiskAttr_table = config["activeRiskAttr_table"]
 
         # 变量类
         self.windowSize = int(config["windowSize"])
+        self.barReturnCol = config["barReturnLabel"]
 
         # 函数类
         self.Data_prepareFunc = Data_prepareFunc
@@ -909,30 +920,83 @@ class OptimizeFactorAttribute(FactorBackTest):
         
         """)
 
-    # def init_resultDB(self, dropDB: bool=False, dropTB:bool=True):
+    def init_resultDB(self, dropTB: bool = False):
+        if dropTB:
+            if self.session.existsTable(dbUrl=self.resultDB, tableName=self.pureFactorRet_table):
+                self.session.dropTable(dbPath=self.resultDB, tableName=self.pureFactorRet_table)
+        if not self.session.existsTable(self.resultDB, self.pureFactorRet_table):
+            columns_name = ["TradeDate"]+self.factor_list
+            columns_type = ["DATE"]+["DOUBLE"]*len(self.factor_list)
+            self.session.run(f"""
+                db=database("{self.resultDB}",VALUE,2010.01M..2030.01M,engine="OLAP");
+                schemaTb=table(1:0,{columns_name},{columns_type});
+                t=db.createDimensionTable(table=schemaTb,tableName="{self.pureFactorRet_table}")
+        """)
+
+        if dropTB:
+            if self.session.existsTable(dbUrl=self.resultDB, tableName=self.activeRetAttr_table):
+                self.session.dropTable(dbPath=self.resultDB, tableName=self.activeRetAttr_table)
+        if not self.session.existsTable(self.resultDB, self.activeRetAttr_table):
+            columns_name = ["TradeDate"]+self.factor_list+["residual"]
+            columns_type = ["DATE"]+["DOUBLE"]*(len(self.factor_list)+1)
+            self.session.run(f"""
+                db=database("{self.resultDB}",VALUE,2010.01M..2030.01M,engine="OLAP");
+                schemaTb=table(1:0,{columns_name},{columns_type});
+                t=db.createDimensionTable(table=schemaTb,tableName="{self.activeRetAttr_table}")
+        """)
+
+        if dropTB:
+            if self.session.existsTable(dbUrl=self.resultDB, tableName=self.activeRiskAttr_table):
+                self.session.dropTable(dbPath=self.resultDB, tableName=self.activeRiskAttr_table)
+        if not self.session.existsTable(self.resultDB, self.activeRiskAttr_table):
+            columns_name = ["TradeDate"]+self.factor_list+["residualRisk","totalRisk"]
+            columns_type = ["DATE"]+["DOUBLE"]*(len(self.factor_list)+2)
+            self.session.run(f"""
+                db=database("{self.resultDB}",VALUE,2010.01M..2030.01M,engine="OLAP");
+                schemaTb=table(1:0,{columns_name},{columns_type});
+                t=db.createDimensionTable(table=schemaTb,tableName="{self.activeRiskAttr_table}")
+        """)
 
     def run(self):
         # 生成共享变量
         self.Data_prepareFunc(self)
-        self.init_def() # 初始定义相关函数
+        # self.init_def() # 初始定义相关函数
         self.session.run(f"""
+            use factorAttributionUtils;
+            go
+            
             // Basic Config
             startDate = {self.start_dot_date};
             endDate = {self.end_dot_date};
             windowSize = {self.windowSize};
-            standard = true;
+            standard = false;
             
             // 反射获取相关共享变量
-            bench = objByName("{self.benchPosObj}",true); // 市场基准权重
-            own = objByName("{self.ownPosObj}",true); // 每日个股实际持仓权重表
-            market = objByName("{self.returnObj}",true); // 每日个股收益率
-            styleExpos = objByName("{self.styleFactorObj}",true); // 每日风格因子暴露表
-            industryExpos = objByName("{self.industryFactorObj}",true); // 每日行业因子哑变量表
+            bench = select * from objByName("{self.benchPosObj}",true); // 市场基准权重
+            own = select * from objByName("{self.ownPosObj}",true); // 每日个股实际持仓权重表
+            market = select * from objByName("{self.returnObj}",true); // 每日个股收益率
+            styleExpos = select * from objByName("{self.styleFactorObj}",true); // 每日风格因子暴露表
+            industryExpos = select * from objByName("{self.industryFactorObj}",true); // 每日行业因子哑变量表
             
             // 调用计算函数
             resDict = attributionFunc(startDate, endDate, bench, own, market, styleExpos,
                   industryExpos, windowSize, standard);
             // 返回键为: "纯因子收益率"/"主动收益归因"/"主动风险归因"
+            
+            // 插入至对应数据库
+            resType = "纯因子收益率"   
+            resTb = resDict[resType]
+            print(colNames(resTb))
+            loadTable("{self.resultDB}","{self.pureFactorRet_table}").append!(resTb);
+
+            resType = "主动收益归因"
+            resTb = resDict[resType]
+            loadTable("{self.resultDB}","{self.activeRetAttr_table}").append!(resTb);
+            
+            resType = "主动风险归因"
+            resTb = resDict[resType]
+            loadTable("{self.resultDB}","{self.activeRiskAttr_table}").append!(resTb);
+            undef(`resTb`resDict); // 释放内存
         """)
 
 if __name__=="__main__":
@@ -946,7 +1010,7 @@ if __name__=="__main__":
     # F = SingleFactorBackTest(
     #     session=session, pool=pool, config=cfg,
     #     Label_prepareFunc=[Label.get_DayBarLabel,
-    #                         Label.get_DayLabel1,
+    #                         # Label.get_DayLabel1,
     #                         Label.get_DayLabel5,
     #                         Label.get_DayLabel10,
     #                         Label.get_DayLabel20],
@@ -954,7 +1018,7 @@ if __name__=="__main__":
     # )
     # # 初始化标签数据库
     # # F.init_labelDB(dropDB=False,dropTB=True)
-    # # F.add_labelData()
+    # F.add_labelData()
     # # # 如果原始数据没有变化，那么不用运行init_CombineDatabase()与add_CombineData()
     # F.init_combineDB(dropDB=True)
     # F.add_CombineData()
@@ -964,13 +1028,14 @@ if __name__=="__main__":
     #     cfg = json5.load(file)
     # W = OptimizeFactorBackTest(session=session, pool=pool, config=cfg,
     #                         Optimize_callBackFunc=OptimizeFunc.myOptimizeFunc)
-    # # W.init_weightDB(dropDB=False, dropTB=True)
-    # # W.init_resultDB(dropTB=True)
+    # W.init_weightDB(dropDB=False, dropTB=True)
+    # W.init_resultDB(dropTB=True)
     # W.get_periodList()
     # W.run()
 
     with open(r".\config\factorAttr_cfg.json5", mode="r", encoding="UTF-8") as file:
         cfg = json5.load(file)
     A = OptimizeFactorAttribute(session=session, pool=pool, config=cfg,
-                                Data_prepareFunc=AttributeFunc.get_AttributeData)
+                                Data_prepareFunc=AttributeFunc.get_AttributeTest)
+    A.init_resultDB(dropTB=True)
     A.run()

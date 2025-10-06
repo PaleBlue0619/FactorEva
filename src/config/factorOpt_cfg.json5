@@ -1,9 +1,9 @@
 {
   // Basic Config
   "start_date": "20200101",
-  "end_date": "20250430",
+  "end_date": "20250930",
   "dailyFreq": true,
-  "callBackInterval": 30, // 每30个取一次
+  "callBackInterval": 20, // 每30个取一次
   "callBackPeriod": 1, // 利用过去K期样本进行组合优化
 
   // COMBINE DATABASE
@@ -11,25 +11,43 @@
   "label_table": "pt",
   "weight_database": "dfs://DayFactorWgt", // 组合优化权重数据库
   "weight_table": "pt",
-//  "result_database": "dfs://DayFactorEva",
-//  "optimize_table": "optimize",
+  "result_database": "dfs://DayFactorEva",
+  "optimize_table": "optimize",
 
   // FACTOR DATABASE
   "factor_database": "dfs://Dayfactor",
   "factor_table": "pt",
-  "retFactor": "interDayReturn",
+  "retFactor": "interDayReturn_std20",
   "factor_list": [
-    "shio",
-    "shio_avg20",
-    "shio_std20",
-    "shioStrong",
-    "shioStrong_avg20",
-    "shioStrong_std20",
-    "shioWeak",
-    "shioWeak_avg20",
-    "shioWeak_std20",
-    // "interDayReturn",  // 隔夜收益率
+//    "shio",
+//    "shio_avg20",
+//    "shio_std20",
+//    "shioStrong",
+//    "shioStrong_avg20",
+//    "shioStrong_std20",
+//    "shioWeak",
+//    "shioWeak_avg20",
+//    "shioWeak_std20",
+    "interDayReturn",  // 隔夜收益率
     "interDayReturn_avg20",
-    "interDayReturn_std20"
-  ] // 因子池
+    // "interDayReturn_std20",
+    "interDayReturnReverse",
+    "interDayReturnReverse_avg20",
+    "interDayReturnReverse_std20",
+    "intraDayReturn",
+    "intraDayReturn_avg20",
+    "intraDayReturn_std20",
+    "intraDayReturnReverse",
+    "intraDayReturnReverse_avg20",
+    "intraDayReturnReverse_std20",
+    "intraDayTurnoverRateDiff",
+    "intraDayTurnoverRateDiff_avg20",
+    "intraDayTurnoverRateDiff_std20",
+    "intraDayTurnoverRateDiffReverse",
+    "intraDayTurnoverRateDiffReverse_avg20",
+    "intraDayTurnoverRateDiffReverse_std20"
+  ], // 因子池
+
+  // For Plot
+  "barReturnLabel": "dayBarReturn"  // LabelDB中的标签名
 }

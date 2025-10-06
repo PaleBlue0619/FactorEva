@@ -7,6 +7,171 @@ from typing import Dict
 from functools import lru_cache
 import streamlit as st
 from FactorEva import SingleFactorBackTest, OptimizeFactorBackTest, OptimizeFactorAttribute
+import plotly.express as px
+import plotly.graph_objects as go
+
+COLORS = ["#5292C5", "#DEA3BC", "#985C8C", "#E1646E", "#ffa26f"]
+# st.set_page_config(
+#     page_title="Factor Evaluation",
+#     # layout="wide",
+#     initial_sidebar_state="expanded"
+# )
+#
+# # 适中的内边距设置
+# st.markdown("""
+# <style>
+#     .main .block-container {
+#         max-width: 1200px;
+#         padding-top: 2rem;
+#         padding-right: 3rem;
+#         padding-left: 3rem;
+#         padding-bottom: 2rem;
+#     }
+#
+#     /* 增加元素间距 */
+#     .stVerticalBlock {
+#         gap: 1.5rem;
+#     }
+#
+#     /* 图表容器适中间距 */
+#     .element-container {
+#         margin-bottom: 1.5rem;
+#     }
+# </style>
+# """, unsafe_allow_html=True)
+
+
+def plotlyPlot(data: pd.DataFrame, xCol: str, yCol: list, figType: str, title: str = None) -> go.Figure:
+    """plotly Figure with 10*6 size
+
+    Parameters:
+    -----------
+    data : pd.DataFrame
+        输入数据
+    xCol : str
+        x轴列名
+    yCol : list
+        y轴列名列表
+    figType : str
+        图表类型：'line' 或 'bar'
+    title : str, optional
+        图表标题
+
+    Returns:
+    --------
+    go.Figure
+        plotly图形对象
+    """
+
+    # 定义颜色方案
+    colors = COLORS
+
+    # 创建基础图形
+    fig = go.Figure()
+
+    if figType.lower() == 'line':
+        # 线状图
+        for i, column in enumerate(yCol):
+            color = colors[i % len(colors)]
+            fig.add_trace(go.Scatter(
+                x=data[xCol],
+                y=data[column],
+                mode='lines',
+                name=column,
+                line=dict(color=color, width=2.5),
+                opacity=0.9,
+                hovertemplate=f'<b>{column}</b><br>{xCol}: %{{x}}<br>Value: %{{y:.4f}}<extra></extra>'
+            ))
+
+    elif figType.lower() == 'bar':
+        # 柱状图 - 设置更窄的柱子
+        for i, column in enumerate(yCol):
+            color = colors[i % len(colors)]
+            fig.add_trace(go.Bar(
+                x=data[xCol],
+                y=data[column],
+                name=column,
+                marker_color=color,
+                opacity=0.9,
+                width=0.4,  # 设置柱子宽度（默认约为0.8）
+                hovertemplate=f'<b>{column}</b><br>{xCol}: %{{x}}<br>Value: %{{y:.4f}}<extra></extra>'
+            ))
+
+        fig.update_layout(
+            barmode='group',
+            bargap=0.3,  # 柱子组之间的间距
+            bargroupgap=0.1  # 同一组内柱子之间的间距
+        )
+
+    else:
+        raise ValueError("figType must be 'line' or 'bar'")
+
+    # 设置10*6尺寸（1000x600像素）
+    fig.update_layout(
+        width=1200,  # 10英寸 ≈ 1000像素
+        height=600,  # 6英寸 ≈ 600像素
+        template="plotly_white",
+        font=dict(size=12),
+        margin=dict(l=60, r=50, t=80, b=60),  # 增加上边距为图例留空间
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,  # 保持在图表上方
+            xanchor="center",  # 水平居中对齐
+            x=0.5,  # 水平位置居中
+            font=dict(size=11),
+            bgcolor='rgba(255,255,255,0.9)',
+            # 去掉边框
+            bordercolor='rgba(255,255,255,0)',  # 透明边框
+            borderwidth=0  # 边框宽度设为0
+        )
+    )
+
+    # 添加标题
+    if title:
+        fig.update_layout(
+            title=dict(
+                text=title,
+                x=0.5,
+                xanchor='center',
+                font=dict(size=16),
+                y=0.95  # 调整标题位置，为图例留出空间
+            )
+        )
+
+    # 更新坐标轴标签 - 关键修改：调整刻度标签位置
+    fig.update_xaxes(
+        title_text="",  # 空字符串，去掉X轴标题
+        tickangle=30,
+        ticklabelposition="outside right",  # 让标签更靠近轴线
+        # 调整标签与轴线的距离（负值表示更靠近）
+        # ticklabelstandoff=0,
+        # 调整刻度与轴线的距离
+        ticks="outside",
+        ticklen=1,
+        # 如果需要进一步调整，可以设置边距
+        # automargin=False
+    )
+
+    fig.update_yaxes(
+        title_text="Value",
+        title_standoff=10
+    )
+
+    # 如果是时间序列数据，优化x轴显示
+    if pd.api.types.is_datetime64_any_dtype(data[xCol]):
+        fig.update_xaxes(
+            tickformat='%Y-%m-%d',
+            tickangle=0,
+            ticklabelposition="outside right",  # 时间序列也应用相同设置
+            # ticklabelstandoff=0,
+            ticks="outside",
+            ticklen=1
+        )
+
+    return fig
+
 
 class SingleFactorPlot(SingleFactorBackTest):
     def __init__(self, session: ddb.session, pool: ddb.DBConnectionPool, config: Dict):
@@ -88,7 +253,7 @@ class SingleFactorPlot(SingleFactorBackTest):
         st.dataframe(data=TotalRankICIR_df)
 
     @lru_cache(128)
-    def get_factorData(self, factor:str, returnInterval:int) -> Dict:
+    def get_factorData(self, factor: str, returnInterval: int) -> Dict:
         resDict = self.session.run(rf"""
         pt=select * from loadTable("{self.resultDB}","{self.summary_table}") 
             where factor == "{factor}" and ReturnInterval=={returnInterval}
@@ -112,7 +277,7 @@ class SingleFactorPlot(SingleFactorBackTest):
         // Tstat
         t_stat = select value from pt where indicator == "R_tstat" pivot by TradeTime,indicator;
         // alpha_tStat = select value from pt where indicator == "Alpha_tstat" pivot by TradeTime,indicator;
-            
+
         // IC & 累计IC
         IC=select value from pt where indicator="IC" pivot by TradeTime,indicator;
         IC_cumsum=IC.copy();
@@ -200,11 +365,18 @@ class SingleFactorPlot(SingleFactorBackTest):
         RankIR = Dict["RankIR"]
         with tabReg:
             st.subheader("Single Factor Return", divider=True)
-            st.line_chart(data=R, x="TradeTime", y=None)
+            fig = plotlyPlot(R, "TradeTime", R.columns.tolist()[1:], "line")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.line_chart(data=R, x="TradeTime", y=None)
             st.subheader("Single Factor Return(cumsum)", divider=True)
-            st.line_chart(data=R_cumsum, x="TradeTime", y=None)
+            fig = plotlyPlot(R_cumsum, "TradeTime", R_cumsum.columns.tolist()[1:], "line")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.line_chart(data=R_cumsum, x="TradeTime", y=None)
+
             st.subheader("Factor Tstat", divider=True)
-            st.bar_chart(data=t_stat, x="TradeTime", y=None, stack=False)
+            fig = plotlyPlot(t_stat, "TradeTime", t_stat.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=t_stat, x="TradeTime", y=None, stack=False)
             st.write("T值绝对值大于等于2的比例")
             t_stat = t_stat.set_index("TradeTime")
             t_stat = (t_stat.abs() >= 2).mean()  # .mean()计算|T|≥2的比例
@@ -214,43 +386,76 @@ class SingleFactorPlot(SingleFactorBackTest):
             # st.bar_chart(data=IC,x="TradeTime",y=None,stack=False)
             # st.subheader("Factor RankIC",divider=True)
             # st.bar_chart(data=RankIC,x="TradeTime",y=None,stack=False)
+
             st.subheader("Factor IC(cumsum)", divider=True)
-            st.line_chart(data=IC_cumsum, x="TradeTime", y=None)
+            fig = plotlyPlot(IC_cumsum, "TradeTime", IC_cumsum.columns.tolist()[1:], "line")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.line_chart(data=IC_cumsum, x="TradeTime", y=None)
+
             st.subheader("Factor RankIC(cumsum)", divider=True)
-            st.line_chart(data=RankIC_cumsum, x="TradeTime", y=None)
+            fig = plotlyPlot(RankIC_cumsum, "TradeTime", RankIC_cumsum.columns.tolist()[1:], "line")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.line_chart(data=RankIC_cumsum, x="TradeTime", y=None)
+
             st.subheader("Factor avg(IC)", divider=True)
-            st.bar_chart(data=avg_IC, x="year", y=None, stack=False)
+            fig = plotlyPlot(avg_IC, "year", avg_IC.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=avg_IC, x="year", y=None, stack=False)
             st.dataframe(data=avg_IC)
             st.write("Total avg(IC):")
             st.dataframe(data=avg_IC.set_index("year").mean())
+
             st.subheader("Factor IR", divider=True)
-            st.bar_chart(data=IR, x="year", y=None, stack=False)
+            fig = plotlyPlot(IR, "year", IR.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=IR, x="year", y=None, stack=False)
             st.dataframe(data=IR)
+
             st.subheader("Factor avg(RankIC)", divider=True)
-            st.bar_chart(data=avg_RankIC, x="year", y=None, stack=False)
+            fig = plotlyPlot(avg_RankIC, "year", avg_RankIC.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=avg_RankIC, x="year", y=None, stack=False)
             st.dataframe(data=avg_RankIC)
             st.write("Total avg(RankIC):")
             st.dataframe(data=avg_RankIC.set_index("year").mean())
+
             st.subheader("Factor RankIR", divider=True)
-            st.bar_chart(data=RankIR, x="year", y=None, stack=False)
+            fig = plotlyPlot(RankIR, "year", RankIR.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=RankIR, x="year", y=None, stack=False)
             st.dataframe(data=RankIR)
         with tabQuantile:
             for r_interval in self.returnIntervals:
                 st.subheader(f"Single Factor Quantile Return(ReturnInterval={r_interval})", divider=True)
-                st.line_chart(data=Dict["Return" + str(r_interval)], x="TradeTime", y=None)
+                data = Dict["Return" + str(r_interval)]
+                fig = plotlyPlot(data, "TradeTime", data.columns.tolist()[1:], "line")
+                st.plotly_chart(fig, use_container_width=True)
+                # st.line_chart(data=Dict["Return" + str(r_interval)], x="TradeTime", y=None)
         with tabReg:
             st.subheader("R square", divider=True)
-            st.bar_chart(data=R_square, x="TradeTime", y=None, stack=False)
+            fig = plotlyPlot(R_square, "TradeTime", R_square.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=R_square, x="TradeTime", y=None, stack=False)
+
             st.subheader("Adj R suqare", divider=True)
-            st.bar_chart(data=Adj_square, x="TradeTime", y=None, stack=False)
+            fig = plotlyPlot(Adj_square, "TradeTime", Adj_square.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=Adj_square, x="TradeTime", y=None, stack=False)
+
             st.subheader("Std Error(残差标准差)", divider=True)
-            st.bar_chart(data=Std_Error, x="TradeTime", y=None, stack=False)
+            fig = plotlyPlot(Std_Error, "TradeTime", Std_Error.columns.tolist()[1:], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=Std_Error, x="TradeTime", y=None, stack=False)
+
             st.subheader("Num of Obs", divider=True)
-            st.line_chart(data=Obs, x="TradeTime", y=None)
+            fig = plotlyPlot(Obs, "TradeTime", Obs.columns.tolist()[1:], "line")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.line_chart(data=Obs, x="TradeTime", y=None)
 
         return Dict  # 返回绘图用的数据Dictionary
 
-class OptimizeFactorBackTestPlot(OptimizeFactorBackTest):
+
+class OptimizeFactorPlot(OptimizeFactorBackTest):
     def __init__(self, session: ddb.session, pool: ddb.DBConnectionPool, config: Dict, ):
         super(OptimizeFactorPlot, self).__init__(session, pool, config, Optimize_callBackFunc=None)
         self.barReturnCol = config["barReturnLabel"]
@@ -273,7 +478,7 @@ class OptimizeFactorBackTestPlot(OptimizeFactorBackTest):
             format_func=str,
             help='即weight database中的weightName标签'
         )
-        tabOpt,tabOther = st.tabs(["组合优化回测","Other"])
+        tabOpt, tabOther = st.tabs(["组合优化回测", "Other"])
 
         # 进行可视化
         # st.title("_Optimize Factor BackTest_")
@@ -299,9 +504,15 @@ class OptimizeFactorBackTestPlot(OptimizeFactorBackTest):
                     update result_df set CumReturn = 1.0+cumsum(Return)
                     result_df
                     """)
-            st.bar_chart(data=data, x="TradeTime", y="Return", stack=False)
+            # st.bar_chart(data=data, x="TradeTime", y="Return", stack=False)
+            fig = plotlyPlot(data, "TradeTime", ["Return"], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+
             st.subheader("Optimize Return(cumsum)", divider=True)
-            st.line_chart(data=data, x="TradeTime", y="CumReturn")
+            fig = plotlyPlot(data, "TradeTime", ["CumReturn"], "line")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.line_chart(data=data, x="TradeTime", y="CumReturn")
+
 
 class OptimizeFactorAttrPlot(OptimizeFactorAttribute):
     def __init__(self, session: ddb.session, pool: ddb.DBConnectionPool, config: Dict):
@@ -309,9 +520,9 @@ class OptimizeFactorAttrPlot(OptimizeFactorAttribute):
 
     def Attribute_Plot(self):
         ts = pd.Timestamp(self.start_date)
-        d = st.date_input("Please Choose the Attr Date", datetime.date(ts.year,ts.month,ts.day))
+        d = st.date_input("Please Choose the Attr Date", datetime.date(ts.year, ts.month, ts.day))
         # tabPure, tabReturn, tabRisk = st.tabs(["纯因子收益率","主动收益归因","主动风险归因"])
-        tabAttr, tabOther = st.tabs(["因子归因","Other"])
+        tabAttr, tabOther = st.tabs(["因子归因", "Other"])
         strDate = pd.Timestamp(d).strftime("%Y.%m.%d")
 
         # # 进行可视化
@@ -325,8 +536,10 @@ class OptimizeFactorAttrPlot(OptimizeFactorAttribute):
             rename!(df,`TradeDate`indicator`value);
             df
             """)
-            st.bar_chart(data=pureFactorRetData,x="indicator",y="value",stack=False)
-        # with tabReturn:
+            fig = plotlyPlot(pureFactorRetData, "indicator", ["value"], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=pureFactorRetData, x="indicator", y="value", stack=False)
+            # with tabReturn:
             st.subheader("Active Return Attribution", divider=True)
             ActiveReturnData = self.session.run(f"""
             df = select * from loadTable("{self.resultDB}","{self.activeRetAttr_table}") where TradeDate == {strDate}
@@ -334,8 +547,10 @@ class OptimizeFactorAttrPlot(OptimizeFactorAttribute):
             rename!(df,`TradeDate`indicator`value);
             df
             """)
-            st.bar_chart(data=ActiveReturnData,x="indicator",y="value",stack=False)
-        # with tabRisk:
+            # st.bar_chart(data=ActiveReturnData, x="indicator", y="value", stack=False)
+            fig = plotlyPlot(ActiveReturnData, "indicator", ["value"], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # with tabRisk:
             st.subheader("Active Risk Attribution", divider=True)
             ActiveRiskData = self.session.run(f"""
             df = select * from loadTable("{self.resultDB}","{self.activeRiskAttr_table}") where TradeDate == {strDate}
@@ -343,7 +558,10 @@ class OptimizeFactorAttrPlot(OptimizeFactorAttribute):
             rename!(df,`TradeDate`indicator`value);
             df
             """)
-            st.bar_chart(data=ActiveRiskData,x="indicator",y="value",stack=False)
+            fig = plotlyPlot(ActiveRiskData, "indicator", ["value"], "bar")
+            st.plotly_chart(fig, use_container_width=True)
+            # st.bar_chart(data=ActiveRiskData, x="indicator", y="value", stack=False)
+
 
 if __name__ == "__main__":
     session = ddb.session()
@@ -354,12 +572,12 @@ if __name__ == "__main__":
         cfg = json5.load(file)
     P = SingleFactorPlot(session=session, pool=pool, config=cfg)
     # P.Summary_plot()
-    # P.FactorR_plot()  # 绘制单因子模型回测结果
+    P.FactorR_plot()  # 绘制单因子模型回测结果
 
     # with open(r"D:\DolphinDB\Project\FactorEva\src\config\factorOpt_cfg.json5", mode="r",
     #           encoding="UTF-8") as file:
     #     cfg = json5.load(file)
-    # W = OptimizeFactorBackTestPlot(session=session, pool=pool, config=cfg)
+    # W = OptimizeFactorPlot(session=session, pool=pool, config=cfg)
     # W.Optimize_Plot()
 
     # with open(r"D:\DolphinDB\Project\FactorEva\src\config\factorAttr_cfg.json5", mode="r",

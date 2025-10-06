@@ -1,7 +1,7 @@
 {
   // Basic Config
-  "start_date": "20210101",
-  "end_date": "20250430",
+  "start_date": "20200101",
+  "end_date": "20250930",
   "windowSize": 30,
 
    // COMBINE DATABASE
@@ -11,44 +11,24 @@
   "weight_table": "pt",
 
   "result_database": "dfs://DayFactorAttr",
-  "pureFactorReturn_table": "pureFactorReturn",
-  "pureReturnAttr_table": "pureReturnAttr",
-  "pureRiskAttr_table": "pureRiskAttr",
+  "pureFactorRet_table": "pureFactorRet",
+  "activeRetAttr_table": "pureRetAttr",
+  "activeRiskAttr_table": "pureRiskAttr",
 
   "barReturnLabel": "dayBarReturn",  // LabelDB中的标签名
  // FACTOR DATABASE
   "factor_database": "dfs://Dayfactor",
   "factor_table": "pt",
   "factor_list": [ // 因子池
-    "shio",
-    "shio_avg20",
-    "shio_std20",
-    "shioStrong",
-    "shioStrong_avg20",
-    "shioStrong_std20",
-    "shioWeak",
-    "shioWeak_avg20",
-    "shioWeak_std20",
-    "interDayReturn",  // 隔夜收益率
-    "interDayReturn_avg20",
-    "interDayReturn_std20",
-//    "turnoverRateDiff", // 隔夜换手率差值
-//    "turnoverRateDiff_avg20",
-//    "turnoverRateDiff_std20",
-//    "intraDayReturn", // 日内收益率
-//    "intraDayReturn_avg20",
-//    "intraDayReturn_std20",
-//    "interDayVolatilityReverse", // 日间反转-波动翻转因子
-//    "interDayVolatilityReverse_avg20",
-//    "interDayVolatilityReverse_std20",
-//    "interDayTurnoverRateReverse", // 日间反转-换手翻转因子
-//    "interDayTurnoverRateReverse_avg20",
-//    "interDayTurnoverRateReverse_std20",
-//    "intraDayVolatilityReverse", // 日内反转-波动翻转因子
-//    "intraDayVolatilityReverse_avg20",
-//    "intraDayVolatilityReverse_std20",
-//    "intraDayTurnoverRateReverse", // 日内反转-换手翻转因子
-//    "intraDayTurnoverRateReverse_avg20",
-//    "intraDayTurnoverRateReverse_std20"
+      "size",
+      "nonLinearSize",
+      "value",
+      "growth",
+      "momentum",
+      "earning",
+      "leverage",
+      "liquidity",
+      "beta",
+      "volatility"
   ]
 }
